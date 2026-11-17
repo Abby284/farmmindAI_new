@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Your crop plan — FarmMind AI{% endblock %}
+{% block content %}
+<section class="results-page results-dashboard">
+  <div class="container">
+    <a class="back-link" href="{{ url_for('index') }}#analysis">← Edit field details</a>
+    <p class="eyebrow results-eyebrow"><span></span> Analysis complete</p>
+    <div class="results-heading-row">
+      <div>
+        <h1 class="results-title">Your field has a plan.</h1>
+        <p class="results-lede">Compare the crop fit, soil outlook and practical next steps for this field.</p>
+      </div>
+      <span class="result-location">{{ heuristic.inp.district or 'Your field' }} · {{ heuristic.inp.season|title }}</span>
+    </div>
+
+    {% if heuristic and heuristic.ranked %}
+    {% set champion = heuristic.ranked[0] %}
+    <article class="champion-card">
+      <div class="champion-card__lead">
+        <p class="eyebrow"><span></span> Champion crop</p>
+        <div class="champion-crop"><span class="champion-emoji">{{ champion.crop.emoji }}</span><div><h2>{{ champion.crop.name }}</h2><p>{{ champion.crop.duration }} growing cycle · {{ champion.crop.tags|join(' · ') }}</p></div></div>
+        <div class="champion-reasons">
+          {% for factor in champion.params.values()|list|sort(attribute='score', reverse=true) %}
+          {% if loop.index <= 3 %}<span>{{ factor.note }}</span>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="champion-score"><span>FIELD FIT</span><b>{{ champion.pct }}<small>%</small></b><em>{{ champion.risk_level|title }} risk</em></div>
+      <dl class="champion-metrics">
+        <div><dt>Projected net</dt><dd>₹{{ '{:,.0f}'.format(champion.profit.net) }}</dd></div>
+        <div><dt>Return on cost</dt><dd>{{ champion.profit.roi }}%</dd></div>
+        <div><dt>Farm size</dt><dd>{{ heuristic.inp.farm_size }} acres</dd></div>
+      </dl>
+      <aside class="champion-note"><p class="eyebrow"><span></span> AI field note</p><p>{{ explanation or 'Use the crop ranking together with current weather and market information before planting.' }}</p></aside>
+    </article>
+    {% endif %}
+
+    <div class="dashboard-tabs" role="tablist" aria-label="Farm plan views">
+      <button class="dashboard-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-rankings" data-dashboard-tab="rankings">Crop rankings</button>
+      <button class="dashboard-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-soil" data-dashboard-tab="soil">Soil health</button>
+      <button class="dashboard-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-rotation" data-dashboard-tab="rotation">Rotation plan</button>
+      <button class="dashboard-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-whatif" data-dashboard-tab="whatif">What-If lab</button>
+    </div>
+
+    <section class="dashboard-panel is-active" id="panel-rankings" role="tabpanel" data-dashboard-panel="rankings">
+      <div class="panel-heading"><div><p class="eyebrow"><span></span> Ranked for your field</p><h2>Crop rankings</h2></div><p>Open a crop to see every scoring factor, projected economics and risk flags.</p></div>
+      <div class="ranking-list">
+        {% for item in heuristic.ranked %}
+        <details class="ranking-card" {% if loop.first %}open{% endif %}>
+          <summary>
+            <span class="rank">{{ '%02d'|format(loop.index) }}</span>
+            <span class="ranking-crop"><b>{{ item.crop.emoji }} {{ item.crop.name }}</b><small>{{ item.crop.duration }} · {{ item.risk_level|title }} risk</small></span>
+            <span class="ranking-profit">₹{{ '{:,.0f}'.format(item.profit.net) }}<small>projected net</small></span>
+            <strong class="ranking-score">{{ item.pct }}%</strong><span class="ranking-chevron">⌄</span>
+          </summary>
+          <div class="ranking-detail">
+            <div><h3>8-factor field fit</h3><div class="factor-grid">{% for label, factor in item.params.items() %}<article><div><b>{{ label }}</b><span>{{ factor.score }}/{{ factor.max }}</span></div><i><em style="width: {{ (factor.score / factor.max * 100)|round }}%"></em></i><small>{{ factor.note }}</small></article>{% endfor %}</div></div>
+            <div><h3>Farm economics</h3><dl class="profit-grid"><div><dt>Gross revenue</dt><dd>₹{{ '{:,.0f}'.format(item.profit.gross) }}</dd></div><div><dt>Input cost</dt><dd>₹{{ '{:,.0f}'.format(item.profit.cost) }}</dd></div><div><dt>Net profit</dt><dd>₹{{ '{:,.0f}'.format(item.profit.net) }}</dd></div><div><dt>ROI</dt><dd>{{ item.profit.roi }}%</dd></div></dl><h3 class="risk-title">Risk flags</h3>{% if item.risk_flags %}<ul class="risk-flags">{% for flag in item.risk_flags %}<li>{{ flag }}</li>{% endfor %}</ul>{% else %}<p class="risk-clear">No edge-of-range risks detected from the entered field details.</p>{% endif %}</div>
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="dashboard-panel" id="panel-soil" role="tabpanel" data-dashboard-panel="soil" hidden>
+      <div class="panel-heading"><div><p class="eyebrow"><span></span> Four-season outlook</p><h2>Soil health</h2></div><p>The projection evolves soil health, pH and nitrogen from the recommended crop sequence.</p></div>
+      <div class="soil-layout">
+        <article class="soil-gauge-card"><div class="soil-gauge" style="--gauge-offset: {{ (314 - (heuristic.soil_final / 100 * 314))|round(1) }}"><svg viewBox="0 0 120 120" aria-label="Projected soil health {{ heuristic.soil_final }} out of 100"><circle class="gauge-track" cx="60" cy="60" r="50"></circle><circle class="gauge-value" cx="60" cy="60" r="50"></circle></svg><div><b>{{ heuristic.soil_final }}</b><span>/ 100</span></div></div><h3>Projected soil health</h3><p>{{ heuristic.soil_advice }}</p></article>
+        <div class="soil-timeline">{% for step in heuristic.soil_history %}<article class="soil-step soil-step--{{ step.status }}"><span class="soil-step__dot"></span><div><small>Season {{ loop.index }} · {{ step.season_label }}</small><h3>{{ step.crop.emoji }} {{ step.crop.name }}</h3><p>{{ step.status|title }} · pH {{ step.ph }} · {{ step.nitrogen|title }} nitrogen{% if step.ph_warn %} · {{ step.ph_warn }} watch{% endif %}</p></div><b>{{ step.health }}</b></article>{% endfor %}</div>
+      </div>
+    </section>
+
+    <section class="dashboard-panel" id="panel-rotation" role="tabpanel" data-dashboard-panel="rotation" hidden>
+      <div class="panel-heading"><div><p class="eyebrow"><span></span> Next three seasons</p><h2>Rotation plan</h2></div><p>{% if heuristic.n_fixer %}{{ heuristic.n_fixer.name }} is prioritized where the sequence needs a soil-restoring option.{% else %}A balanced follow-on sequence designed around the current top match.{% endif %}</p></div>
+      <div class="rotation-grid">{% for step in heuristic.rotation %}<article class="rotation-card"><span>0{{ loop.index }}</span><small>{{ step.season_label }}</small><div class="rotation-crop"><b>{{ step.crop.emoji }}</b><h3>{{ step.crop.name }}</h3></div><p>{{ step.note }}</p><dl><div><dt>Expected net</dt><dd>₹{{ '{:,.0f}'.format(step.net) }}</dd></div><div><dt>Soil effect</dt><dd>{{ step.crop.soil_effect|title }}</dd></div></dl></article>{% endfor %}</div>
+    </section>
+
+    <section class="dashboard-panel" id="panel-whatif" role="tabpanel" data-dashboard-panel="whatif" hidden>
+      <div class="panel-heading"><div><p class="eyebrow"><span></span> Test a change</p><h2>What-If lab</h2></div><p>Change one condition at a time and compare the resulting crop-fit scores.</p></div>
+      <div class="whatif-layout"><div class="scenario-buttons">{% for scenario in heuristic.whatif_scenarios %}<button type="button" data-whatif="{{ scenario.id }}"><b>{{ scenario.label }}</b><small>{{ scenario.desc }}</small></button>{% endfor %}</div><div class="whatif-result" aria-live="polite"><p>Choose a scenario to compare its effect on the crop ranking.</p></div></div>
+    </section>
+
+    {% if ml and ml.predictions %}
+    <section class="results-card ml-card"><p class="eyebrow"><span></span> {{ ml.model or 'Independent ML signal' }}</p><h2>{% if ml.district %}Historic crop fit for {{ ml.district }}{% else %}Model prediction{% endif %}</h2><p class="ml-note">{{ ml.message or 'Use this signal alongside the field-fit ranking and a current soil test.' }}</p><div class="ml-predictions">{% for prediction in ml.predictions[:3] %}<span>{{ prediction.crop }} {% if prediction.expected_yield_tonnes_per_ha is defined %}<b>{{ prediction.expected_yield_tonnes_per_ha }} t/ha</b><small>{{ prediction.source_records }} historic records</small>{% else %}<b>{{ (prediction.probability * 100)|round(1) }}%</b>{% endif %}</span>{% endfor %}</div></section>
+    {% endif %}
+  </div>
+</section>
+<script id="results-dashboard-data" type="application/json">{{ {'inp': heuristic.inp, 'ranked': heuristic.ranked}|tojson }}</script>
+<script src="{{ url_for('static', filename='results-dashboard.js') }}"></script>
+{% endblock %}
