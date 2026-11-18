@@ -1,0 +1,43 @@
+/* FarmMind bilingual voice assistant */
+.voice-assistant{margin:24px 0 30px;padding:24px;border:1px solid #dfe6d7;border-radius:22px;background:linear-gradient(135deg,#f7fbf3,#fff);box-shadow:0 12px 32px rgba(31,64,35,.06)}
+.voice-assistant__head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.voice-assistant__head h3{margin:4px 0 6px;font-size:1.35rem;color:#1e3825}
+.voice-assistant__head p{margin:0;color:#617064;max-width:620px;line-height:1.55}
+.voice-assistant__controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:18px 0 12px}
+.voice-assistant select,.voice-assistant input{border:1px solid #d8e0d4;border-radius:12px;padding:11px 13px;background:#fff;font:inherit;color:#263b2b}
+.voice-assistant__button{border:0;border-radius:12px;padding:11px 16px;font:600 14px inherit;cursor:pointer;background:#e7efe2;color:#26462e}
+.voice-assistant__button--primary{background:#275b36;color:#fff}
+.voice-assistant__button:disabled{opacity:.45;cursor:not-allowed}
+.voice-assistant__log{height:230px;overflow:auto;background:#fff;border:1px solid #e5eae1;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.voice-message{max-width:min(88%,620px);padding:11px 14px;border-radius:14px;line-height:1.5;white-space:pre-wrap}
+.voice-message--bot{align-self:flex-start;background:#f0f4ec;color:#263b2b}
+.voice-message--user{align-self:flex-end;background:#e3f1e5;color:#21442a}
+.voice-assistant__entry{display:flex;gap:8px;margin-top:12px}
+.voice-assistant__entry input{flex:1;min-width:0}
+.voice-assistant__status{font-size:13px;color:#68786b;min-height:20px;margin:8px 2px 0}
+.voice-assistant__note{font-size:12px;color:#738075;margin-top:10px}
+.voice-assistant__progress{height:5px;border-radius:9px;background:#e6ecdf;overflow:hidden;margin-top:14px}
+.voice-assistant__progress span{display:block;height:100%;width:0;background:#4d8b54;transition:width .2s}
+.voice-assistant__actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.voice-narration{margin:18px 0 24px;padding:18px 20px;border:1px solid #dfe8d8;border-radius:18px;background:#f7fbf4}
+.voice-narration h3{margin:0 0 6px;color:#24432c}
+.voice-narration p{margin:0 0 12px;color:#607063}
+.voice-narration__controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.voice-narration select{border:1px solid #d8e0d4;border-radius:10px;padding:9px;background:#fff}
+@media(max-width:600px){.voice-assistant{padding:16px}.voice-assistant__entry{flex-wrap:wrap}.voice-assistant__entry input{flex-basis:100%}.voice-message{max-width:96%}}
+
+/* Guided tap-to-answer questionnaire */
+.voice-assistant__hint{font-size:13px;color:#718071;padding:2px 4px 6px}
+.voice-assistant__choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:2px 0 10px}
+.voice-assistant__choice{min-height:48px;padding:12px 14px;border:1px solid #d8e4d4;border-radius:13px;background:#f6faf3;color:#25452d;text-align:left;font:600 14px inherit;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.voice-assistant__choice:hover,.voice-assistant__choice:focus-visible{background:#e6f1e3;border-color:#6e9d70;transform:translateY(-1px);outline:2px solid transparent}
+.voice-assistant__entry input[type=number]{max-width:260px}
+.voice-assistant__entry input[hidden],.voice-assistant__entry button[hidden]{display:none}
+.voice-assistant__actions [hidden]{display:none}
+.voice-assistant__log{height:270px}
+.voice-assistant__status{min-height:20px}
+@media(max-width:600px){.voice-assistant__choices{grid-template-columns:repeat(2,minmax(0,1fr))}.voice-assistant__entry input{max-width:none;flex:1 1 100%}.voice-assistant__entry button{flex:1}}
+
+.voice-narration__transcript{margin-top:14px;padding:14px 16px;border:1px solid #e1e9dc;border-radius:14px;background:#fff;color:#344b38;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow:auto}
+.voice-narration__controls label{font-size:13px;color:#607063}
+.voice-narration__controls select{max-width:100%}
