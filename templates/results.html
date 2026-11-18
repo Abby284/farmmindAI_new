@@ -46,27 +46,32 @@
 <p class="voice-assistant__status" data-narration-status role="status"></p>
 <div class="voice-narration__transcript" data-narration-text aria-live="polite"></div>
 </section>
-<script id="dashboard-narration-data" type="application/json">{{ {
-  'season': heuristic.inp.season,
-  'district': heuristic.inp.district,
-  'ranked': heuristic.ranked[:5]|map('tojson')|list|map('from_json')|list if false else [
-    {'crop': item.crop.name, 'pct': item.pct, 'risk_level': item.risk_level,
-     'profit': {'net': item.profit.net, 'roi': item.profit.roi},
-     'reasons': item.params.values()|selectattr('score','gt',0)|map(attribute='note')|list,
-     'risk_flags': item.risk_flags}
-    for item in heuristic.ranked[:5]
+<script id="dashboard-narration-data" type="application/json">
+{
+  "season": {{ heuristic.inp.season|tojson }},
+  "district": {{ heuristic.inp.district|tojson }},
+  "soil_final": {{ heuristic.soil_final|tojson }},
+  "soil_advice": {{ heuristic.soil_advice|tojson }},
+  "ranked": [
+    {% for item in heuristic.ranked[:5] %}
+    {"crop": {{ item.crop.name|tojson }}, "pct": {{ item.pct|tojson }},
+     "risk_level": {{ item.risk_level|tojson }},
+     "profit": {"net": {{ item.profit.net|tojson }}, "roi": {{ item.profit.roi|tojson }}},
+     "reasons": [{% for factor in item.params.values() %}{{ factor.note|tojson }}{% if not loop.last %},{% endif %}{% endfor %}],
+     "risk_flags": {{ item.risk_flags|tojson }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
   ],
-  'reasons': (heuristic.ranked[0].params.values()|selectattr('score','gt',0)|map(attribute='note')|list if heuristic.ranked else []),
-  'risks': (heuristic.ranked[0].risk_flags if heuristic.ranked else []),
-  'soil_final': heuristic.soil_final,
-  'soil_advice': heuristic.soil_advice,
-  'rotation': [
-    {'season': item.season_label, 'crop': item.crop.name, 'note': item.note}
-    for item in heuristic.rotation
+  "reasons": [{% if heuristic.ranked %}{% for factor in heuristic.ranked[0].params.values() %}{{ factor.note|tojson }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}],
+  "risks": {{ (heuristic.ranked[0].risk_flags if heuristic.ranked else [])|tojson }},
+  "rotation": [
+    {% for item in heuristic.rotation %}
+    {"season": {{ item.season_label|tojson }}, "crop": {{ item.crop.name|tojson }}, "note": {{ item.note|tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
   ],
-  'ml_crop': (ml.predictions[0].crop if ml and ml.predictions else ''),
-  'ml_yield': (ml.predictions[0].expected_yield_tonnes_per_ha if ml and ml.predictions and ml.predictions[0].expected_yield_tonnes_per_ha is defined else '')
-}|tojson }}</script>
+  "ml_crop": {{ (ml.predictions[0].crop if ml and ml.predictions else '')|tojson }},
+  "ml_yield": {{ (ml.predictions[0].expected_yield_tonnes_per_ha if ml and ml.predictions and ml.predictions[0].expected_yield_tonnes_per_ha is defined else '')|tojson }}
+}
+</script>
 
     <div class="dashboard-tabs" role="tablist" aria-label="Farm plan views">
       <button class="dashboard-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-rankings" data-dashboard-tab="rankings">Crop rankings</button>
