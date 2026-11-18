@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
     const mover = payload.top_mover;
     output.innerHTML = `<p class="whatif-caption"><b>${safe(payload.scenario)}</b>${mover ? ` · Biggest change: ${safe(mover.crop?.name)} (${mover.delta > 0 ? '+' : ''}${mover.delta}%)` : ''}</p><div class="whatif-table-wrap"><table><thead><tr><th>Crop</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    document.dispatchEvent(new CustomEvent('farmmind:whatif-result', { detail: payload }));
   };
   buttons.forEach((button) => button.addEventListener('click', async () => {
     if (button.disabled) return;
