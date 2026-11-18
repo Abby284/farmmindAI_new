@@ -10,6 +10,23 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# The static frontend will be hosted separately. Keep the allowlist empty until
+# its Render URL is known; same-origin legacy routes continue to work unchanged.
+@app.after_request
+def add_api_cors_headers(response):
+    allowed = {
+        item.strip().rstrip("/")
+        for item in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+        if item.strip()
+    }
+    origin = request.headers.get("Origin", "").rstrip("/")
+    if origin and origin in allowed:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+
 # ------------------------------------------------------------
 # Keep the legacy app behavior and add the ML + LLM upgrade.
 # Supports form posts and JSON AJAX requests.
@@ -156,7 +173,7 @@ def index():
         goal_labels=GOAL_LABELS,
     )
 
-@app.route("/analyze", methods=["POST"])
+@app.route("/analyze", methods=["POST"])\n@app.route("/api/analyze", methods=["POST"])
 def analyze_field():
     raw = build_payload_from_request()
     inp = parse_form(raw)
@@ -177,7 +194,7 @@ def analyze_field():
 
     return jsonify(result)
 
-@app.route("/location-profile", methods=["POST"])
+@app.route("/location-profile", methods=["POST"])\n@app.route("/api/location-profile", methods=["POST", "OPTIONS"])
 def location_profile():
     """Return sourced defaults after a user has explicitly granted browser location access."""
     payload = request.get_json(silent=True) or {}
@@ -189,7 +206,7 @@ def location_profile():
         app.logger.exception("Location profile lookup failed")
         return jsonify({"error": "Location services are unavailable. Please enter your field details manually."}), 503
 
-@app.route("/whatif", methods=["POST"])
+@app.route("/whatif", methods=["POST"])\n@app.route("/api/whatif", methods=["POST", "OPTIONS"])
 def whatif_route():
     data = request.get_json(silent=True) or {}
     inp = data.get("inp", {})
@@ -208,7 +225,7 @@ def whatif_route():
 
     return jsonify(result)
 
-@app.route("/explain", methods=["POST"])
+@app.route("/explain", methods=["POST"])\n@app.route("/api/explain", methods=["POST", "OPTIONS"])
 def explain_result():
     payload = request.get_json(silent=True) or request.form.to_dict() or {}
     if not payload:
@@ -220,7 +237,7 @@ def explain_result():
     return jsonify({"explanation": explanation})
 
 
-@app.route("/narrate", methods=["POST"])
+@app.route("/narrate", methods=["POST"])\n@app.route("/api/narrate", methods=["POST", "OPTIONS"])
 def narrate_results():
     """Generate a spoken crop-plan or What-If explanation with Gemini."""
     from services.gemini_narration import generate_narration
