@@ -194,7 +194,7 @@ def analyze_field():
 
     return jsonify(result)
 
-@app.route("/location-profile", methods=["POST"])\n@app.route("/api/location-profile", methods=["POST", "OPTIONS"])
+@app.route("/location-profile", methods=["POST"])\n@app.route("/api/location-profile", methods=["POST"])
 def location_profile():
     """Return sourced defaults after a user has explicitly granted browser location access."""
     payload = request.get_json(silent=True) or {}
@@ -206,7 +206,7 @@ def location_profile():
         app.logger.exception("Location profile lookup failed")
         return jsonify({"error": "Location services are unavailable. Please enter your field details manually."}), 503
 
-@app.route("/whatif", methods=["POST"])\n@app.route("/api/whatif", methods=["POST", "OPTIONS"])
+@app.route("/whatif", methods=["POST"])\n@app.route("/api/whatif", methods=["POST"])
 def whatif_route():
     data = request.get_json(silent=True) or {}
     inp = data.get("inp", {})
@@ -225,7 +225,7 @@ def whatif_route():
 
     return jsonify(result)
 
-@app.route("/explain", methods=["POST"])\n@app.route("/api/explain", methods=["POST", "OPTIONS"])
+@app.route("/explain", methods=["POST"])\n@app.route("/api/explain", methods=["POST"])
 def explain_result():
     payload = request.get_json(silent=True) or request.form.to_dict() or {}
     if not payload:
@@ -237,7 +237,7 @@ def explain_result():
     return jsonify({"explanation": explanation})
 
 
-@app.route("/narrate", methods=["POST"])\n@app.route("/api/narrate", methods=["POST", "OPTIONS"])
+@app.route("/narrate", methods=["POST"])\n@app.route("/api/narrate", methods=["POST"])
 def narrate_results():
     """Generate a spoken crop-plan or What-If explanation with Gemini."""
     from services.gemini_narration import generate_narration
