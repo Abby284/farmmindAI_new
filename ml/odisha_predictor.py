@@ -1,19 +1,17 @@
-"""Odisha crop-yield model trained from the local, sourced OGD sample."""
+"""Odisha crop-yield predictions using a model trained during the Render build."""
 from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict
 
+import joblib
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data" / "odisha_crop_training_sample.csv"
+MODEL_FILE = ROOT / "ml" / "models" / "odisha_yield_model.joblib"
 CATEGORICAL = ["district_key", "season_key", "crop_name"]
 NUMERIC = [
     "annual_normal_rainfall_mm", "irrigation_all_season_thousand_ha",
@@ -25,7 +23,8 @@ NUMERIC = [
 
 @lru_cache(maxsize=1)
 def _load_model_and_data():
-    if not DATASET.exists():
+    """Load prebuilt model at runtime; never train inside a farmer's request."""
+    if not DATASET.exists() or not MODEL_FILE.exists():
         return None, pd.DataFrame()
     data = pd.read_csv(DATASET)
     required = set(CATEGORICAL + NUMERIC + ["yield_tonnes_per_ha"])
@@ -35,17 +34,10 @@ def _load_model_and_data():
     data = data[(data["yield_tonnes_per_ha"] > 0) & (data["yield_tonnes_per_ha"] < 100)]
     if len(data) < 100:
         return None, pd.DataFrame()
-    transformer = ColumnTransformer([
-        ("labels", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL),
-        ("numeric", "passthrough", NUMERIC),
-    ])
-    model = Pipeline([
-        ("features", transformer),
-        # Kept deliberately compact: this runs once per app process and must
-        # not make a farmer's first result wait for a large background build.
-        ("regressor", RandomForestRegressor(n_estimators=80, min_samples_leaf=2, random_state=42, n_jobs=1)),
-    ])
-    model.fit(data[CATEGORICAL + NUMERIC], data["yield_tonnes_per_ha"])
+    try:
+        model = joblib.load(MODEL_FILE)
+    except (OSError, ValueError, EOFError):
+        return None, pd.DataFrame()
     return model, data
 
 
@@ -65,7 +57,7 @@ def predict_odisha_crops(inp: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "unavailable", "reason": "No Odisha district was detected.", "predictions": []}
     model, data = _load_model_and_data()
     if model is None:
-        return {"status": "unavailable", "reason": "Odisha training sample is not built yet.", "predictions": []}
+        return {"status": "unavailable", "reason": "Pre-trained Odisha model is not available; using the general crop model.", "predictions": []}
 
     historical = data[(data["district_key"] == district) & (data["season_key"] == season)]
     if historical.empty:
