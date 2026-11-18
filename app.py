@@ -236,12 +236,9 @@ def narrate_results():
         return jsonify({"text": generate_narration(payload)})
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 503
-    except requests.RequestException:
-        app.logger.exception("Gemini narration request failed")
-        return jsonify({"error": "Gemini is temporarily unavailable. Using the built-in summary instead."}), 502
     except Exception:
         app.logger.exception("Gemini narration failed")
-        return jsonify({"error": "AI narration could not be generated. Using the built-in summary instead."}), 502
+        return jsonify({"error": "Gemini is temporarily unavailable. Using the built-in summary instead."}), 502
 
 if __name__ == "__main__":
     app.run(debug=False, use_reloader=False, port=5001)
