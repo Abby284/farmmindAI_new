@@ -281,16 +281,42 @@ function initNarration(root) {
       return chunks;
     }) || [];
   }
-  function narrate() {
-    const text = scope.value === 'whatif' ? whatifSummary() : fullSummary();
-    textOutput.textContent = text;
-    cancel();
-    if (!synth || !window.SpeechSynthesisUtterance) {
-      status.textContent = t('Audio is unavailable in this browser. Read the summary below.', 'इस ब्राउज़र में आवाज़ उपलब्ध नहीं है। नीचे सारांश पढ़ें।');
+  async function narrate() {
+    const isWhatif = scope.value === 'whatif';
+    if (isWhatif && !latestWhatif) {
+      status.textContent = t('Calculate a What-If scenario first.','पहले What-If परिस्थिति का परिणाम निकालें।');
       return;
     }
-    const chunks = splitSpeech(text);
+    const fallback = isWhatif ? whatifSummary() : fullSummary();
+    textOutput.textContent = fallback;
+    cancel();
     const token = session;
+    let speechText = fallback;
+    status.textContent = t('Asking Gemini to explain your results…','Gemini से आपके परिणाम समझाने के लिए कह रहे हैं…');
+    try {
+      const response = await fetch('/narrate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          language: lang.value,
+          scope: isWhatif ? 'whatif' : 'plan',
+          data: isWhatif ? latestWhatif : data
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.text) throw new Error(payload.error || 'AI narration unavailable');
+      speechText = payload.text;
+      status.textContent = t('Gemini explanation ready. Preparing audio…','Gemini की व्याख्या तैयार है। आवाज़ शुरू हो रही है…');
+    } catch (error) {
+      status.textContent = t('Using FarmMind’s built-in explanation because AI is unavailable.','AI उपलब्ध नहीं है, इसलिए FarmMind का तैयार सारांश सुनाया जाएगा।');
+    }
+    if (token !== session) return;
+    textOutput.textContent = speechText;
+    if (!synth || !window.SpeechSynthesisUtterance) {
+      status.textContent = t('Audio is unavailable in this browser. Read the complete explanation below.', 'इस ब्राउज़र में आवाज़ उपलब्ध नहीं है। पूरी व्याख्या नीचे पढ़ें।');
+      return;
+    }
+    const chunks = splitSpeech(speechText);
     const voices = synth.getVoices();
     const locale = lang.value === 'hi' ? 'hi-IN' : 'en-IN';
     const voice = voices.find(v => v.lang.toLowerCase() === locale.toLowerCase())
@@ -309,9 +335,8 @@ function initNarration(root) {
       if (voice) utterance.voice = voice;
       utterance.onend = next;
       utterance.onerror = event => {
-        if (token !== session) return;
-        if (event.error === 'canceled' || event.error === 'interrupted') return;
-        status.textContent = t('Audio stopped. The full written summary is available below.', 'आवाज़ रुक गई। पूरा लिखित सारांश नीचे उपलब्ध है।');
+        if (token !== session || event.error === 'canceled' || event.error === 'interrupted') return;
+        status.textContent = t('Audio stopped. The complete written explanation is below.', 'आवाज़ रुक गई। पूरी लिखित व्याख्या नीचे है।');
       };
       currentUtterance = utterance;
       status.textContent = t('Reading section ' + index + ' of ' + chunks.length + '…', 'भाग ' + index + ' / ' + chunks.length + ' पढ़ा जा रहा है…');
