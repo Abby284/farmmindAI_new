@@ -37,3 +37,7 @@
 .voice-assistant__log{height:270px}
 .voice-assistant__status{min-height:20px}
 @media(max-width:600px){.voice-assistant__choices{grid-template-columns:repeat(2,minmax(0,1fr))}.voice-assistant__entry input{max-width:none;flex:1 1 100%}.voice-assistant__entry button{flex:1}}
+
+.voice-narration__transcript{margin-top:14px;padding:14px 16px;border:1px solid #e1e9dc;border-radius:14px;background:#fff;color:#344b38;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow:auto}
+.voice-narration__controls label{font-size:13px;color:#607063}
+.voice-narration__controls select{max-width:100%}
