@@ -205,12 +205,130 @@ function initIntake(root) {
   status.textContent = t('Choose an answer to continue. Voice input is optional; the questionnaire works without a microphone.','आगे बढ़ने के लिए जवाब चुनें। माइक्रोफ़ोन ज़रूरी नहीं है।');
 }
 
-function initNarration(root){
-  const node=document.querySelector('#dashboard-narration-data'),lang=root.querySelector('[data-narration-language]');
-  const play=root.querySelector('[data-narration-play]'),stop=root.querySelector('[data-narration-stop]'),status=root.querySelector('[data-narration-status]');
-  if(!node||!play||!window.speechSynthesis)return;
-  let d={};try{d=JSON.parse(node.textContent);}catch(_){}
-  function summary(hi){const crop=d.crop||'',score=d.score??'',risk=d.risk||'',net=Number(d.net||0).toLocaleString('en-IN'),roi=d.roi??'',season=d.season||'',place=d.district||'';const extra=d.ml_crop?(hi?' ऐतिहासिक उपज मॉडल में '+d.ml_crop+' का अनुमानित उत्पादन '+d.ml_yield+' टन प्रति हेक्टेयर है।':' The historical yield model estimates '+d.ml_crop+' at '+d.ml_yield+' tonnes per hectare.'):'';if(hi)return 'आपके खेत के विश्लेषण का सारांश। '+(place?place+' जिले के लिए ':'')+'आपकी '+season+' ऋतु में सबसे उपयुक्त फसल '+crop+' है। इसका खेत अनुकूलता स्कोर '+score+' प्रतिशत है और जोखिम स्तर '+(risk==='low'?'कम':risk==='medium'?'मध्यम':'अधिक')+' है। अनुमानित शुद्ध लाभ '+net+' रुपये है और लागत पर अनुमानित रिटर्न '+roi+' प्रतिशत है। ये अनुमान दर्ज की गई जानकारी और मॉडल की मान्यताओं पर आधारित हैं, गारंटी नहीं। बुवाई से पहले स्थानीय मौसम, मंडी भाव और मिट्टी परीक्षण की जाँच करें।'+extra;return 'Here is your FarmMind field summary. '+(place?'For '+place+' district, ':'')+'in the '+season+' season, the top recommended crop is '+crop+'. Its field suitability score is '+score+' percent, with '+risk+' risk. Estimated net profit is rupees '+net+', and estimated return on cost is '+roi+' percent. These are model-based estimates, not guarantees. Before planting, check local weather, current market prices and a field soil test.'+extra;}
-  play.addEventListener('click',()=>{speechSynthesis.cancel();const hi=lang.value==='hi',u=new SpeechSynthesisUtterance(summary(hi));u.lang=hi?'hi-IN':'en-IN';u.rate=.9;const vs=speechSynthesis.getVoices(),v=vs.find(x=>x.lang.toLowerCase()===(hi?'hi-in':'en-in'))||vs.find(x=>x.lang.toLowerCase().startsWith(hi?'hi':'en'));if(v)u.voice=v;u.onstart=()=>status.textContent=hi?'डैशबोर्ड सारांश पढ़ा जा रहा है…':'Reading dashboard summary…';u.onend=()=>status.textContent=hi?'सारांश पूरा हुआ।':'Summary finished.';u.onerror=()=>status.textContent='Speech playback failed.';speechSynthesis.speak(u);});
-  stop.addEventListener('click',()=>{speechSynthesis.cancel();status.textContent='';});
+function initNarration(root) {
+  const dataNode = document.querySelector('#dashboard-narration-data');
+  const lang = root.querySelector('[data-narration-language]');
+  const play = root.querySelector('[data-narration-play]');
+  const stopButton = root.querySelector('[data-narration-stop]');
+  const status = root.querySelector('[data-narration-status]');
+  const textOutput = root.querySelector('[data-narration-text]');
+  const scope = root.querySelector('[data-narration-scope]');
+  if (!dataNode || !play) return;
+  let data = {};
+  try { data = JSON.parse(dataNode.textContent); } catch (_) {}
+  let latestWhatif = null;
+  let session = 0;
+  let currentUtterance = null;
+  const synth = window.speechSynthesis;
+  const t = (en, hi) => lang.value === 'hi' ? hi : en;
+  const num = n => Number(n || 0).toLocaleString('en-IN', {maximumFractionDigits:1});
+  const cropName = item => item?.crop?.name || item?.crop || 'Unknown crop';
+  const rank = data.ranked || [];
+  function fullSummary() {
+    const hi = lang.value === 'hi';
+    const top = rank[0];
+    if (!top) return t('No crop recommendations are available yet.', 'अभी फसल की सिफारिश उपलब्ध नहीं है।');
+    const parts = [];
+    if (hi) {
+      parts.push('फार्ममाइंड की फसल योजना। ये अनुमान आपके दिए गए खेत के विवरण पर आधारित हैं, गारंटी नहीं।');
+      parts.push((data.district ? data.district + ' जिले में, ' : '') + data.season + ' मौसम के लिए सबसे उपयुक्त फसल ' + cropName(top) + ' है। अनुकूलता स्कोर ' + num(top.pct) + ' प्रतिशत, जोखिम ' + top.risk_level + ', अनुमानित शुद्ध लाभ ' + num(top.profit?.net) + ' रुपये और लागत पर रिटर्न ' + num(top.profit?.roi) + ' प्रतिशत है।');
+      if (rank.length > 1) parts.push('अन्य विकल्प: ' + rank.slice(1,4).map(x => cropName(x) + ', ' + num(x.pct) + ' प्रतिशत अनुकूलता और ' + num(x.profit?.net) + ' रुपये अनुमानित शुद्ध लाभ').join('; ') + '।');
+      if (data.reasons?.length) parts.push('मुख्य कारण: ' + data.reasons.slice(0,3).join('; ') + '।');
+      if (data.risks?.length) parts.push('ध्यान देने वाले जोखिम: ' + data.risks.slice(0,3).join('; ') + '।');
+      parts.push('चार मौसम के बाद अनुमानित मिट्टी स्वास्थ्य स्कोर ' + num(data.soil_final) + ' में से 100 है। ' + (data.soil_advice || ''));
+      if (data.rotation?.length) parts.push('अगले मौसमों का फसल चक्र: ' + data.rotation.map(x => x.season + ' में ' + x.crop + ', ' + x.note).join('; ') + '।');
+      if (data.ml_crop) parts.push('ऐतिहासिक मॉडल में ' + data.ml_crop + (data.ml_yield !== '' ? ' की अनुमानित उपज ' + data.ml_yield + ' टन प्रति हेक्टेयर है।' : ' भी एक अलग मॉडल संकेत है।'));
+      parts.push('बुवाई से पहले स्थानीय मौसम, मंडी भाव और खेत की मिट्टी जाँच की पुष्टि करें।');
+    } else {
+      parts.push('Here is your complete FarmMind crop plan. These are estimates based on your entered field conditions, not guarantees.');
+      parts.push('For ' + (data.district ? data.district + ' district in ' : '') + data.season + ' season, the top recommendation is ' + cropName(top) + '. Field-fit score: ' + num(top.pct) + ' percent. Risk: ' + top.risk_level + '. Estimated net return: ' + num(top.profit?.net) + ' rupees, with ' + num(top.profit?.roi) + ' percent return on cost.');
+      if (rank.length > 1) parts.push('Other leading choices are ' + rank.slice(1,4).map(x => cropName(x) + ', with ' + num(x.pct) + ' percent field fit and estimated net ' + num(x.profit?.net) + ' rupees').join('; ') + '.');
+      if (data.reasons?.length) parts.push('Key reasons for the top match: ' + data.reasons.slice(0,3).join('; ') + '.');
+      if (data.risks?.length) parts.push('Watch these risks: ' + data.risks.slice(0,3).join('; ') + '.');
+      parts.push('The projected soil health after four seasons is ' + num(data.soil_final) + ' out of 100. ' + (data.soil_advice || ''));
+      if (data.rotation?.length) parts.push('The proposed rotation is ' + data.rotation.map(x => x.crop + ' in ' + x.season + '. ' + x.note).join('; ') + '.');
+      if (data.ml_crop) parts.push('A separate historical model highlights ' + data.ml_crop + (data.ml_yield !== '' ? ', with estimated yield ' + data.ml_yield + ' tonnes per hectare.' : '.'));
+      parts.push('Before planting, confirm current weather, local market prices and a field soil test.');
+    }
+    return parts.join('\n\n');
+  }
+  function whatifSummary() {
+    const p = latestWhatif;
+    if (!p) return t('Select and calculate a What-If scenario first.', 'पहले व्हाट-इफ में कोई परिस्थिति चुनकर उसका परिणाम निकालें।');
+    const rows = (p.results || []).slice(0,5);
+    if (lang.value === 'hi') return 'व्हाट-इफ विश्लेषण: ' + p.scenario + '। ' +
+      rows.map(x => cropName(x) + ' की अनुकूलता ' + num(x.old_pct) + ' से ' + num(x.new_pct) + ' प्रतिशत हुई, यानी ' + (x.delta > 0 ? 'बढ़त ' : x.delta < 0 ? 'कमी ' : 'कोई बदलाव नहीं, ') + num(Math.abs(x.delta)) + ' प्रतिशत अंक').join('; ') +
+      '। यह एक अनुमानित परिस्थिति है, वास्तविक परिणाम की गारंटी नहीं।';
+    return 'What-If scenario: ' + p.scenario + '. ' +
+      rows.map(x => cropName(x) + ' changes from ' + num(x.old_pct) + ' to ' + num(x.new_pct) + ' percent field fit, a change of ' + num(x.delta) + ' percentage points').join('; ') +
+      '. This is a simulated change, not a guaranteed outcome.';
+  }
+  function cancel() {
+    session++;
+    currentUtterance = null;
+    if (synth) synth.cancel();
+  }
+  function splitSpeech(text) {
+    return text.replace(/\n+/g,' ').match(/[^.!?।]+[.!?।]?/g)?.flatMap(sentence => {
+      const chunks = [];
+      const words = sentence.trim().split(/\s+/);
+      let part = '';
+      for (const word of words) {
+        if ((part + ' ' + word).length > 150 && part) { chunks.push(part); part = word; }
+        else part += (part ? ' ' : '') + word;
+      }
+      if (part) chunks.push(part);
+      return chunks;
+    }) || [];
+  }
+  function narrate() {
+    const text = scope.value === 'whatif' ? whatifSummary() : fullSummary();
+    textOutput.textContent = text;
+    cancel();
+    if (!synth || !window.SpeechSynthesisUtterance) {
+      status.textContent = t('Audio is unavailable in this browser. Read the summary below.', 'इस ब्राउज़र में आवाज़ उपलब्ध नहीं है। नीचे सारांश पढ़ें।');
+      return;
+    }
+    const chunks = splitSpeech(text);
+    const token = session;
+    const voices = synth.getVoices();
+    const locale = lang.value === 'hi' ? 'hi-IN' : 'en-IN';
+    const voice = voices.find(v => v.lang.toLowerCase() === locale.toLowerCase())
+      || voices.find(v => v.lang.toLowerCase().startsWith(lang.value));
+    let index = 0;
+    function next() {
+      if (token !== session) return;
+      if (index >= chunks.length) {
+        currentUtterance = null;
+        status.textContent = t('Narration complete.', 'सारांश पूरा पढ़ लिया गया।');
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(chunks[index++]);
+      utterance.lang = locale;
+      utterance.rate = 0.9;
+      if (voice) utterance.voice = voice;
+      utterance.onend = next;
+      utterance.onerror = event => {
+        if (token !== session) return;
+        if (event.error === 'canceled' || event.error === 'interrupted') return;
+        status.textContent = t('Audio stopped. The full written summary is available below.', 'आवाज़ रुक गई। पूरा लिखित सारांश नीचे उपलब्ध है।');
+      };
+      currentUtterance = utterance;
+      status.textContent = t('Reading section ' + index + ' of ' + chunks.length + '…', 'भाग ' + index + ' / ' + chunks.length + ' पढ़ा जा रहा है…');
+      synth.speak(utterance);
+    }
+    next();
+  }
+  play.addEventListener('click', narrate);
+  stopButton.addEventListener('click', () => { cancel(); status.textContent = t('Narration stopped.', 'आवाज़ रोक दी गई।'); });
+  lang.addEventListener('change', () => { cancel(); textOutput.textContent = ''; status.textContent = ''; });
+  scope.addEventListener('change', () => { cancel(); textOutput.textContent = ''; });
+  document.addEventListener('farmmind:whatif-result', event => {
+    latestWhatif = event.detail;
+    if (scope.value === 'whatif') {
+      textOutput.textContent = whatifSummary();
+      status.textContent = t('Scenario ready. Press Listen to hear its explanation.', 'परिस्थिति तैयार है। सुनने के लिए बटन दबाएँ।');
+    }
+  });
+  textOutput.textContent = fullSummary();
 }
