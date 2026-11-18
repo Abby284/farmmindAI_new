@@ -219,5 +219,29 @@ def explain_result():
     explanation = safe_explanation(heuristic, ml)
     return jsonify({"explanation": explanation})
 
+
+@app.route("/narrate", methods=["POST"])
+def narrate_results():
+    """Generate a spoken crop-plan or What-If explanation with Gemini."""
+    from services.gemini_narration import generate_narration
+
+    payload = request.get_json(silent=True) or {}
+    if payload.get("scope") not in ("plan", "whatif"):
+        return jsonify({"error": "Choose a valid narration scope."}), 400
+    if payload.get("language") not in ("en", "hi"):
+        return jsonify({"error": "Choose English or Hindi."}), 400
+    if not isinstance(payload.get("data"), dict):
+        return jsonify({"error": "Narration data is missing."}), 400
+    try:
+        return jsonify({"text": generate_narration(payload)})
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 503
+    except requests.RequestException:
+        app.logger.exception("Gemini narration request failed")
+        return jsonify({"error": "Gemini is temporarily unavailable. Using the built-in summary instead."}), 502
+    except Exception:
+        app.logger.exception("Gemini narration failed")
+        return jsonify({"error": "AI narration could not be generated. Using the built-in summary instead."}), 502
+
 if __name__ == "__main__":
     app.run(debug=False, use_reloader=False, port=5001)
