@@ -35,6 +35,9 @@
     </article>
     {% endif %}
 
+<section class="voice-narration" id="dashboard-voice-narration"><h3>Listen to your crop plan / अपनी फसल योजना सुनें</h3><p>Hear a spoken summary of the recommendation, suitability, risk and estimated returns.</p><div class="voice-narration__controls"><label for="narration-language">Language / भाषा</label><select id="narration-language" data-narration-language><option value="en">English</option><option value="hi">हिंदी</option></select><button type="button" class="voice-assistant__button voice-assistant__button--primary" data-narration-play>▶ Listen / सुनें</button><button type="button" class="voice-assistant__button" data-narration-stop>Stop / रोकें</button></div><p class="voice-assistant__status" data-narration-status role="status"></p></section>
+<script id="dashboard-narration-data" type="application/json">{{ {'crop': (heuristic.ranked[0].crop.name if heuristic.ranked else 'No crop ranked'), 'score': (heuristic.ranked[0].pct if heuristic.ranked else 0), 'risk': (heuristic.ranked[0].risk_level if heuristic.ranked else 'unknown'), 'net': (heuristic.ranked[0].profit.net if heuristic.ranked else 0), 'roi': (heuristic.ranked[0].profit.roi if heuristic.ranked else 0), 'season': heuristic.inp.season, 'district': heuristic.inp.district, 'ml_crop': (ml.predictions[0].crop if ml and ml.predictions else ''), 'ml_yield': (ml.predictions[0].expected_yield_tonnes_per_ha if ml and ml.predictions and ml.predictions[0].expected_yield_tonnes_per_ha is defined else '')}|tojson }}</script>
+
     <div class="dashboard-tabs" role="tablist" aria-label="Farm plan views">
       <button class="dashboard-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-rankings" data-dashboard-tab="rankings">Crop rankings</button>
       <button class="dashboard-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-soil" data-dashboard-tab="soil">Soil health</button>
