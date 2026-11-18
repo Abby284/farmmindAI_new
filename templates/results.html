@@ -35,7 +35,17 @@
     </article>
     {% endif %}
 
-<section class="voice-narration" id="dashboard-voice-narration"><h3>Listen to your crop plan / अपनी फसल योजना सुनें</h3><p>Hear a spoken summary of the recommendation, suitability, risk and estimated returns.</p><div class="voice-narration__controls"><label for="narration-language">Language / भाषा</label><select id="narration-language" data-narration-language><option value="en">English</option><option value="hi">हिंदी</option></select><button type="button" class="voice-assistant__button voice-assistant__button--primary" data-narration-play>▶ Listen / सुनें</button><button type="button" class="voice-assistant__button" data-narration-stop>Stop / रोकें</button></div><p class="voice-assistant__status" data-narration-status role="status"></p></section>
+<section class="voice-narration" id="dashboard-voice-narration">
+<h3>AI crop-plan explanation / फसल योजना की व्याख्या</h3>
+<p>Listen to the complete crop ranking, soil outlook, rotation plan, or a calculated What-If scenario.</p>
+<div class="voice-narration__controls">
+<label for="narration-language">Language / भाषा</label><select id="narration-language" data-narration-language><option value="en">English</option><option value="hi">हिंदी</option></select>
+<label for="narration-scope">Explain / सुनें</label><select id="narration-scope" data-narration-scope><option value="plan">Complete crop plan / पूरी फसल योजना</option><option value="whatif">Latest What-If result / व्हाट-इफ परिणाम</option></select>
+<button type="button" class="voice-assistant__button voice-assistant__button--primary" data-narration-play>▶ Listen / सुनें</button><button type="button" class="voice-assistant__button" data-narration-stop>Stop / रोकें</button>
+</div>
+<p class="voice-assistant__status" data-narration-status role="status"></p>
+<div class="voice-narration__transcript" data-narration-text aria-live="polite"></div>
+</section>
 <script id="dashboard-narration-data" type="application/json">{{ {
   'season': heuristic.inp.season,
   'district': heuristic.inp.district,
