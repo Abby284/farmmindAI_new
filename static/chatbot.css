@@ -25,3 +25,15 @@
 .voice-narration__controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .voice-narration select{border:1px solid #d8e0d4;border-radius:10px;padding:9px;background:#fff}
 @media(max-width:600px){.voice-assistant{padding:16px}.voice-assistant__entry{flex-wrap:wrap}.voice-assistant__entry input{flex-basis:100%}.voice-message{max-width:96%}}
+
+/* Guided tap-to-answer questionnaire */
+.voice-assistant__hint{font-size:13px;color:#718071;padding:2px 4px 6px}
+.voice-assistant__choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:2px 0 10px}
+.voice-assistant__choice{min-height:48px;padding:12px 14px;border:1px solid #d8e4d4;border-radius:13px;background:#f6faf3;color:#25452d;text-align:left;font:600 14px inherit;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.voice-assistant__choice:hover,.voice-assistant__choice:focus-visible{background:#e6f1e3;border-color:#6e9d70;transform:translateY(-1px);outline:2px solid transparent}
+.voice-assistant__entry input[type=number]{max-width:260px}
+.voice-assistant__entry input[hidden],.voice-assistant__entry button[hidden]{display:none}
+.voice-assistant__actions [hidden]{display:none}
+.voice-assistant__log{height:270px}
+.voice-assistant__status{min-height:20px}
+@media(max-width:600px){.voice-assistant__choices{grid-template-columns:repeat(2,minmax(0,1fr))}.voice-assistant__entry input{max-width:none;flex:1 1 100%}.voice-assistant__entry button{flex:1}}
