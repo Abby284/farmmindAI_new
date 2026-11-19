@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import logging
 import os
 import re
 from collections import defaultdict
@@ -19,7 +20,8 @@ INDIA_BOUNDS = {"lat_min": 6.0, "lat_max": 37.6, "lon_min": 68.0, "lon_max": 97.
 # A quick client-safe guard before reverse geocoding. Reverse-geocoding verifies
 # the state before FarmMind returns an Odisha profile.
 ODISHA_BOUNDS = {"lat_min": 17.6, "lat_max": 22.7, "lon_min": 81.2, "lon_max": 87.7}
-REQUEST_TIMEOUT = 20
+REQUEST_TIMEOUT = (5, 12)
+logger = logging.getLogger(__name__)
 DATA_GOV_API_URL = "https://api.data.gov.in/resource/{resource_id}"
 DATA_GOV_PAGE_SIZE = 1_000
 # A single filtered IMD page contains multiple historical seasons for most
@@ -81,13 +83,19 @@ def _reverse_geocode(lat: float, lon: float) -> Dict[str, str]:
         timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
-    address = response.json().get("address", {})
-    district = address.get("state_district") or address.get("county") or ""
+    payload = response.json()
+    address = payload.get("address") or {}
+    district = (address.get("state_district") or address.get("district") or address.get("county") or address.get("city_district") or address.get("municipality") or "")
+    state = address.get("state") or address.get("region") or ""
+    if not district:
+        city = (address.get("city") or address.get("town") or address.get("village") or "").strip().casefold()
+        city_to_district = {"bhubaneswar": "Khordha", "khordha": "Khordha", "cuttack": "Cuttack", "puri": "Puri", "sambalpur": "Sambalpur", "balasore": "Baleshwar", "bhadrak": "Bhadrak", "berhampur": "Ganjam", "brahmapur": "Ganjam", "rourkela": "Sundargarh", "angul": "Angul", "baripada": "Mayurbhanj", "jeypore": "Koraput"}
+        district = city_to_district.get(city, "")
     return {
         "district": district,
         "district_key": _district_key(district),
-        "state": address.get("state") or "",
-        "label": district or address.get("state") or "Your area",
+        "state": state,
+        "label": district or address.get("city") or address.get("town") or state or "Your area",
     }
 
 
@@ -246,7 +254,8 @@ def get_location_profile(lat_value: Any, lon_value: Any) -> Dict[str, Any]:
     try:
         location = _reverse_geocode(lat, lon)
         sources.append("Approximate district from OpenStreetMap reverse geocoding")
-    except requests.RequestException:
+    except (requests.RequestException, ValueError, TypeError, AttributeError) as exc:
+        logger.warning("Reverse geocoding failed (%s); coordinates omitted from logs.", type(exc).__name__)
         location = {"district": "", "district_key": "", "state": "", "label": "Your field"}
         notices.append("We could not identify your district. You can still enter values manually.")
     if location.get("state") and location["state"].strip().casefold() != "odisha":
@@ -259,7 +268,8 @@ def get_location_profile(lat_value: Any, lon_value: Any) -> Dict[str, Any]:
         values["forecast_rainfall"] = weather["forecast_rainfall"]
         sources.append("Open-Meteo seven-day local forecast for temperature and humidity")
         notices.append("Forecast rainfall is shown as a field note; seasonal rainfall requires a district climatology source.")
-    except requests.RequestException:
+    except (requests.RequestException, ValueError, TypeError, AttributeError) as exc:
+        logger.warning("Weather lookup failed (%s); coordinates omitted from logs.", type(exc).__name__)
         notices.append("Live weather was unavailable, so temperature and humidity were not filled.")
 
     baseline = _baseline_for(location)
